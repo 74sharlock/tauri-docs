@@ -1,0 +1,258 @@
+---
+title: Develop
+description: Core concepts for developing with Tauri.
+sidebar:
+  label: Overview
+i18nReady: true
+---
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+现在[一切准备就绪](/start/)，您可以使用 Tauri 来运行应用程序了。
+
+如果您使用的是 UI 框架或 JavaScript 打包工具，通常可通过开发服务器来加速开发流程。
+若尚未配置应用的开发 URL 和启动脚本，可通过 [devUrl](/reference/config/#devurl) 和 [beforeDevCommand](/reference/config/#beforedevcommand) 配置项进行设置：
+
+```json title=tauri.conf.json
+{
+  "build": {
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev"
+  }
+}
+```
+
+:::note
+
+每个框架都有其专属的开发工具链。本文档无法全面涵盖所有工具或保持实时更新。
+
+请查阅您所用框架的官方文档，了解具体配置方式并确定需要设置的准确参数值。
+
+:::
+
+如果未使用 UI 框架或模块打包工具，您可以直接将 Tauri 指向前端源代码目录，Tauri CLI 将自动为您启动开发服务器：
+
+```json title=tauri.conf.json
+{
+  "build": {
+    "frontendDist": "./src"
+  }
+}
+```
+
+请注意，此示例中的 `src` 目录必须包含 `index.html` 文件以及前端所需的其他所有资源文件。
+
+:::caution[原生开发服务器安全性说明]
+
+Tauri 内置的开发服务器不支持双向认证及加密功能。请务必注意：在非可信网络环境中切勿使用该服务器进行开发。
+具体安全风险说明详见[《开发服务器安全考量指南》](/security/lifecycle/#development-server)。
+
+:::
+
+### 开发桌面应用程序
+
+要开发桌面应用程序，请运行 `tauri dev` 命令。
+
+<CommandTabs
+  npm="npm run tauri dev"
+  yarn="yarn tauri dev"
+  pnpm="pnpm tauri dev"
+  deno="deno task tauri dev"
+  bun="bun tauri dev"
+  cargo="cargo tauri dev"
+/>
+
+首次运行此命令时，Rust 包管理器可能需要**数分钟**下载并构建所有依赖项。由于这些依赖会被缓存，后续构建过程将显著加快——只需重新编译您的代码即可。
+
+当 Rust 完成构建后，Webview 窗口将自动打开并加载您的网页应用。您对前端代码的修改（若开发工具支持热更新）会像浏览器调试一样实时同步到 Webview 中。
+
+#### 启动 Web 审查工具
+
+调试应用时，可通过以下方式调出Web审查工具：
+
+1. 在Webview界面右键点击选择"Inspect"选项
+2. 使用系统快捷键：
+ - Windows/Linux系统：`Ctrl+Shift+I`
+ - macOS系统：`Command+Option+I`
+
+### 开发移动端应用
+
+移动端开发流程与桌面端类似，但需改用以下命令：
+
+Android开发：`tauri android dev`
+iOS开发：`tauri ios dev`
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev"
+  yarn="yarn tauri [android|ios] dev"
+  pnpm="pnpm tauri [android|ios] dev"
+  deno="deno task tauri [android|ios] dev"
+  bun="bun tauri [android|ios] dev"
+  cargo="cargo tauri [android|ios] dev"
+/>
+
+首次运行此命令时，Rust包管理器可能需要**​​数分钟**​​下载并构建所有依赖包。由于依赖会被缓存，后续构建将显著加快——仅需重新编译您的代码即可。
+
+#### 开发服务器
+
+移动端开发服务器与桌面端运行机制类似，但需注意：若需在实体iOS设备上调试，必须通过 `TAURI_DEV_HOST` 环境变量配置监听地址（该地址由Tauri CLI自动提供）。
+默认采用公网地址，但更安全的做法是使用iOS设备的TUN专用地址——当前阶段需配合Xcode才能建立设备连接。
+
+要使用iOS设备地址，需按以下步骤操作：
+
+1. ​​预准备​​：
+ - 运行开发命令前先启动Xcode
+ - 通过窗口 > 设备与模拟器菜单确认设备已联网连接
+​​2. 执行命令​​：
+ - 运行tauri ios dev --force-ip-prompt
+ - 选择以**::2**结尾的IPv6设备地址
+
+要使开发服务器能被iOS设备访问，需根据 `TAURI_DEV_HOST` 值调整监听主机配置（若该变量已设定）。以下是Vite的配置示例：
+
+```js
+import { defineConfig } from 'vite';
+
+const host = process.env.TAURI_DEV_HOST;
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  clearScreen: false,
+  server: {
+    host: host || false,
+    port: 1420,
+    strictPort: true,
+    hmr: host
+      ? {
+          protocol: 'ws',
+          host,
+          port: 1421,
+        }
+      : undefined,
+  },
+});
+```
+
+具体配置方法请查阅您所用框架的官方设置指南。
+
+:::note
+通过 [create-tauri-app](https://github.com/tauri-apps/create-tauri-app) 创建的项目已默认配置好移动端开发服务器（开箱即用）。
+:::
+
+#### 设备选择
+
+默认情况下，mobile dev 命令会尝试在已连接的设备上运行您的应用，如果没有找到设备，则会提示您选择要使用的模拟器。
+若要预先指定运行目标，您可以直接提供设备或模拟器的名称作为参数：
+
+<CommandTabs
+  npm="npm run tauri ios dev 'iPhone 15'"
+  yarn="yarn tauri ios dev 'iPhone 15'"
+  pnpm="pnpm tauri ios dev 'iPhone 15'"
+  deno="deno task tauri ios dev 'iPhone 15'"
+  bun="bun tauri ios dev 'iPhone 15'"
+  cargo="cargo tauri ios dev 'iPhone 15'"
+/>
+
+#### 使用 Xcode 或 Android Studio
+
+您也可以选择使用 Xcode 或 Android Studio 进行应用开发。
+通过 IDE 而非命令行工具，有助于排查某些开发问题。
+若需直接打开移动端 IDE（而非在连接设备或模拟器上运行），请使用 `--open` 参数：
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev --open"
+  yarn="yarn tauri [android|ios] dev --open"
+  pnpm="pnpm tauri [android|ios] dev --open"
+  deno="deno task tauri [android|ios] dev --open"
+  bun="bun tauri [android|ios] dev --open"
+  cargo="cargo tauri [android|ios] dev --open"
+/>
+
+:::note
+
+若需在实体iOS设备上运行应用，必须同时提供 `--host` 参数，且开发服务器需以 `process.env.TAURI_DEV_HOST` 值作为主机地址。
+具体配置方法请查阅所用框架的设置指南。
+
+<CommandTabs
+  npm="npm run tauri [android|ios] dev --open --host"
+  yarn="yarn tauri [android|ios] dev --open --host"
+  pnpm="pnpm tauri [android|ios] dev --open --host"
+  deno="deno task tauri [android|ios] dev --open --host"
+  bun="bun tauri [android|ios] dev --open --host"
+  cargo="cargo tauri [android|ios] dev --open --host"
+/>
+:::
+
+:::caution
+要使用 Xcode 或 Android Studio，**必须**保持 Tauri CLI 进程持续运行且**不可终止**。
+建议通过执行 `tauri [android|ios] dev --open` 命令启动，并在 IDE 运行期间始终保持该进程处于活动状态。
+:::
+
+#### 启动 Web 审查工具
+
+- iOS
+
+  调试iOS应用需使用Safari的Web审查工具，操作步骤如下：
+
+​  1. 启用开发者模式​​
+    - 在Mac的Safari中，点击菜单栏 **Safari > 设置 > 高级**
+    - 勾选**为网页开发者显示功能**
+​​  2. 设备端设置​​（仅实体设备需要）
+    - 进入设备 **设置 > Safari > 高级**
+    - 开启 **网页检查器**
+​  3. ​连接调试​​
+    - 启用后Safari菜单栏将出现**开发**选项
+    - 选择对应设备/模拟器 > 点击**localhost**
+    - 即可打开Safari开发者工具窗口
+
+- Android
+
+  Android模拟器默认已开启Web审查工具，但实体设备需要手动设置。将Android设备连接到电脑后，打开设备上的设置应用，选择**关于手机**，找到**版本号**并连续点击7次，即可启用开发者模式。
+
+  接着进入**开发者选项**设置，先打开顶部的开发者选项总开关，然后启用**USB调试**功能。这样就能在设备上进行应用调试了。
+
+  :::note
+  不同 Android 厂商系统开启开发者模式的方式可能有所不同，请查阅您设备制造商的官方文档以获取准确指引。
+  :::
+
+  Android 的 Web 审查工具基于谷歌 Chrome 开发者工具实现。
+  只需在 Chrome 浏览器地址栏输入 `chrome://inspect`，当 Android 应用运行时，您的设备或模拟器将出现在远程设备列表中，点击设备对应的**inspect**即可打开开发者工具。
+
+#### 问题排查
+
+​​1. Xcode 构建脚本执行错误​​
+
+Tauri 通过创建构建阶段来集成 iOS Xcode 项目，该阶段会执行 Tauri CLI 将 Rust 源代码编译为运行时加载的库。
+此构建阶段在 Xcode 进程上下文中执行，因此可能无法使用 shell 修改（如 PATH 添加）。
+使用 Node.js 版本管理器等工具时需特别注意兼容性问题。
+
+​​2. 首次 iOS 应用执行的网络权限提示​​
+
+首次运行 tauri ios dev 时，iOS 可能会提示请求本地网络设备查找和连接权限。
+此权限是必需的，因为要从 iOS 设备访问开发服务器，必须将其暴露在本地网络中。
+要在设备上运行应用，必须点击"允许"并重启应用。
+
+### 响应源代码变更
+
+与网页视图实时更新类似，Tauri 会监控 Rust 文件的变更。当您修改任何 Rust 文件时，应用程序会自动重新构建并重启。
+
+您可以通过在 `tauri dev` 命令中添加 `--no-watch` 标志来禁用此行为。
+
+若要限制被监控变更的文件范围，可以在 src-tauri 文件夹中创建 `.taurignore` 文件。该文件与常规的 Git ignore 文件功能相同，因此您可以忽略任何文件夹或文件。
+
+```filename=.taurignore
+build/
+src/generated/*.rs
+deny.toml
+```
+
+### 使用浏览器开发者工具
+
+Tauri的API仅能在应用窗口内运行，因此一旦开始使用这些API，您将无法再在系统浏览器中打开前端界面。
+
+如需继续使用浏览器开发者工具，必须配置[tauri-invoke-http](https://github.com/tauri-apps/tauri-invoke-http)
+通过HTTP服务器桥接Tauri API调用。
+
+### 源代码管理
+
+在项目仓库中，您​​**必须**​​将 `src-tauri/Cargo.lock` 与 `src-tauri/Cargo.toml` 一同提交到git，
+因为Cargo使用lockfile来确保构建的确定性。因此，建议所有应用程序都提交它们的 `Cargo.lock` 文件。您**​​不应**​​提交 `src-tauri/target` 文件夹或其任何内容。
